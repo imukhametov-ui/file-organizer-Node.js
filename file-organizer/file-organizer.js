@@ -95,10 +95,57 @@ switch (command) {
   break;
 }
 
-  case 'cleanup':
-    const cleanup = new Cleanup();
-    await cleanup.clean(targetPath);
-    break;
+  case 'cleanup': {
+  const cleanup = new Cleanup();
+
+  const daysIndex = process.argv.indexOf('--older-than');
+  const confirmFlag = process.argv.includes('--confirm');
+
+  const days =
+    daysIndex !== -1 && process.argv[daysIndex + 1]
+      ? Number(process.argv[daysIndex + 1])
+      : 30;
+
+  cleanup.on('cleanup-start', ({ directory, days }) => {
+    console.log(`🧹 Cleanup: ${directory}`);
+    console.log(`Looking for files older than ${days} days...\n`);
+  });
+
+  cleanup.on('files-collected', ({ toDelete }) => {
+    if (toDelete.length === 0) {
+      console.log('✅ No old files found.');
+      return;
+    }
+
+    console.log(`Found ${toDelete.length} files:\n`);
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+
+    toDelete.forEach(file => {
+      console.log(path.basename(file.path));
+      console.log(`  Size: ${(file.size / 1024).toFixed(2)} KB`);
+      console.log(`  Modified: ${file.daysOld} days ago`);
+      console.log('');
+    });
+  });
+
+  cleanup.on('dry-run', () => {
+    console.log('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+    console.log('⚠️ DRY RUN MODE: No files were deleted.');
+    console.log('Run with --confirm to delete files.');
+  });
+
+  cleanup.on('file-deleted', ({ current, total }) => {
+    process.stdout.write(`\rDeleting... ${current}/${total}`);
+  });
+
+  cleanup.on('cleanup-complete', ({ deletedCount, freedSpace }) => {
+    console.log('\n\n✅ Cleanup complete!');
+    console.log(`Deleted: ${deletedCount} files (${(freedSpace / 1024).toFixed(2)} KB freed)`);
+  });
+
+  await cleanup.clean(targetPath, days, confirmFlag);
+  break;
+}
 
   default:
     console.log('❌ Unknown command');
