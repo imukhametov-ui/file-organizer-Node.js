@@ -1,3 +1,4 @@
+import path from 'path';
 import Scanner from './lib/scanner.js';
 import DuplicateFinder from './lib/duplicates.js';
 import Organizer from './lib/organizer.js';
