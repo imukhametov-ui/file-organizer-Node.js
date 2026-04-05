@@ -61,10 +61,39 @@ switch (command) {
   break;
 }
 
-  case 'organize':
-    const organizer = new Organizer();
-    await organizer.organize(targetPath);
-    break;
+  case 'organize': {
+  const organizer = new Organizer();
+
+  const outputIndex = process.argv.indexOf('--output');
+  const outputDir =
+    outputIndex !== -1 && process.argv[outputIndex + 1]
+      ? process.argv[outputIndex + 1]
+      : './organized-files';
+
+  organizer.on('organize-start', ({ sourceDir, outputDir }) => {
+    console.log(`📦 Organizing: ${sourceDir}`);
+    console.log(`Target: ${outputDir}\n`);
+    console.log('Creating folders...');
+  });
+
+  organizer.on('copy-start', () => {});
+
+  organizer.on('copy-complete', ({ current, total }) => {
+    process.stdout.write(`\rCopying files... ${current}/${total}`);
+  });
+
+  organizer.on('organize-complete', ({ summary, totalCopied, totalSize, outputDir }) => {
+    console.log('\n\n✅ Organization complete!\n');
+    console.log('Summary:');
+    for (const [category, count] of Object.entries(summary)) {
+      console.log(`${category}: ${count} files → ${outputDir}/${category}`);
+    }
+    console.log(`\nTotal copied: ${totalCopied} files (${(totalSize / 1024).toFixed(2)} KB)`);
+  });
+
+  await organizer.organize(targetPath, outputDir);
+  break;
+}
 
   case 'cleanup':
     const cleanup = new Cleanup();
